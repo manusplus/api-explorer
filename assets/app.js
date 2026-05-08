@@ -2694,8 +2694,23 @@ for (const item of items) {
 
   let currentSchemaDoc = null;
 
+  function buildSchemaBasePath(){
+    const endpoint = String(endpointEl.value || '').trim().replace(/\/+$/, '');
+    const client = normalizeSegment(clientEl.value);
+    const instance = normalizeSegment(instanceEl.value);
+    const isTestOrDemo = endpoint.includes('server-test') || endpoint.includes('server-demo');
+
+    if (!endpoint) return '';
+    if (!client) return endpoint;
+    if (isTestOrDemo){
+      if (!instance) return endpoint + '/' + client;
+      return endpoint + '/' + client + '/' + instance;
+    }
+    return endpoint + '/' + client;
+  }
+
   function getResolvedSchemaUrl(){
-    const base = buildBasePath();
+    const base = buildSchemaBasePath();
     const schemaPath = String(schemaResourceEl.value || '').trim();
     if (!schemaPath) return '';
     const knownSource = SCHEMA_SOURCE_BY_PATH[schemaPath] || currentSchemaSource;
@@ -2707,13 +2722,14 @@ for (const item of items) {
       const entry = findLocalSchemaEntry(schemaPath);
       return entry && entry.file ? new URL('./schemas/' + entry.file, window.location.href).href : '';
     }
-    return pathJoin(base, schemaPath);
+    return base.replace(/\/+$/, '') + schemaPath;
   }
 
   async function fetchRemoteSchemaDoc(schemaPath){
-    const base = buildBasePath();
-    if (!base) throw new Error('Base path is empty. Fill endpoint + client (+ instance).');
-    const url = pathJoin(base, schemaPath);
+    const base = buildSchemaBasePath();
+    if (!base) throw new Error('Schema base path is empty. Fill endpoint + client; fill instance for TEST/DEMO.');
+    const url = base.replace(/\/+$/, '') + schemaPath;
+    console.log('Remote schema URL:', url);
     const headers = Object.assign({'Accept':'application/json'}, (function(){ try{ return getAuthHeader(); }catch(e){ return {}; } })());
     const resp = await fetch(url, { headers });
     const text = await resp.text();
