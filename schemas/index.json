@@ -1,0 +1,12 @@
+[
+  {
+    "path": "/schema/node/hours",
+    "file": "hours.json",
+    "title": "Pure Hours"
+  },
+  {
+    "path": "/schema/node/illnesscase",
+    "file": "illnesscase.json",
+    "title": "Node Illnesscase"
+  }
+]

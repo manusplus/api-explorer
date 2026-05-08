@@ -1,0 +1,88 @@
+﻿{
+	"$schema": "http://jschema.com/schema/wacs#",
+	"title": "Pure Hours",
+	"baseUri": "api/node/{nodeId}/hours",
+	"type": "object",
+	"properties": {
+		"id": { "type": "integer" },
+		"date": {
+			"type": "string",
+			"format": "date"
+		},
+		"employeeId": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"registerId": { "type": "string" },
+		"nodeId": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"nodeCode": { "type": "string" },
+		"nodeName": { "type": "string" },
+		"departmentId": { "type": "integer" },
+		"departmentCode": { "type": "string" },
+		"departmentName": { "type": "string" },
+		"hourCodeId": { "type": "integer" },
+		"hourCode": { "type": "string" },
+		"fromTime": {
+			"type": "integer"
+		},
+		"toTime": {
+			"type": "integer"
+		},
+		"duration": { "type": "integer" },
+		"break": { "type": "integer" },
+		"confirmed": { "type": "boolean" },
+		"agreed": { "type": "boolean" },
+		"typeId": { "type": "integer" }
+	},
+	"links": [
+		{
+			"title": "Get realized hours for a period",
+			"href": {
+				"template": "/{fromDate}/{toDate}/",
+				"vars": {
+					"nodeId": {
+						"description": "Node identifier",
+						"type": "string",
+						"format": "uuid"
+					},
+					"fromDate": {
+						"description": "Period start date",
+						"type": "string",
+						"format": "date"
+					},
+					"toDate": {
+						"description": "Period end date",
+						"type": "string",
+						"format": "date"
+					}
+				},
+				"required": [ "nodeId", "fromDate" ]
+			},
+			"schema": {
+				"type": "object",
+				"properties": {
+					"departmentId": {
+						"description": "Department ID",
+						"type": "integer"
+					},
+					"subtree": {
+						"description": "Include all subnodes",
+						"type": "boolean"
+					},
+					"groupId": {
+						"description": "Hour code group ID",
+						"type": "integer"
+					}
+				}
+			},
+			"mediaType": {
+				"application/json": { "$ref": "#" } //,
+				//"application/vnd.hropen.timecard+json": { "$ref": "http://hropen.us-west-2.elasticbeanstalk.com/schema/timecard#" }
+			},
+			"rel": "instances"
+		}
+	]
+}

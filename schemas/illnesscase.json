@@ -1,0 +1,687 @@
+﻿{
+	"$schema": "http://jschema.com/schema/wacs#",
+	"title": "Node Illnesscase",
+	"baseUri": "api/node/{nodeId}/illnesscase",
+	"type": "object",
+	"properties": {
+		"confirmationStatus": {
+			"enum": [ 0, 1, 2 ],
+			"enumNames": [ "None", "Confirmed", "Unconfirmed" ]
+		},
+		"historyId": { "type": "integer" },
+		"id": { "type": "integer" },
+		"employeeId": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"hcodeDescription": { "type": "string" },
+		"hcode": { "type": "string" },
+		"abbr": { "type": "string" },
+		"hcodeId": { "type": "integer" },
+		"fromDate": {
+			"type": "string",
+			"format": "date"
+		},
+		"toDate": {
+			"type": "string",
+			"format": "date"
+		},
+		"isIllnessPrefilled": { "type": "boolean" },
+		"externalId": { "type": "string" },
+		"partialIllnessPercentage": { "type": "number" },
+		"workTherapyPercentage": { "type": "number" },
+		"workTherapyPercentageDouble": { "type": "number" },
+		"toTime": {
+			"type": "integer"
+		},
+		"fromTime": {
+			"type": "integer"
+		},
+		"fromDateTime": {
+			"type": "string",
+			"format": "date"
+		},
+		"toDateTime": {
+			"type": "string",
+			"format": "date"
+		},
+		"continuedIllnessId": { "type": "integer" },
+		"continuedIllnessFromDate": {
+			"type": "integer"
+		},
+		"continuedIllnessToDate": {
+			"type": "integer"
+		},
+		"isClosed": { "type": "boolean" },
+		"extraData": {
+			"type": [ "object", "null" ],
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+				}
+			}
+		}
+	},
+	"required": [ "employeeId", "hCodeId", "description", "fromDate" ],
+	"links": [
+		{
+			//IllnessController.Get
+			"title": "Gets illness by id",
+			"href": {
+				"template": "/{illnessId}",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"illnessId": {
+						"type": "integer",
+						"description": "Illness id"
+					}
+				},
+				"required": [ "nodeId", "illnessId" ]
+			},
+			"rel": "self",
+			"targetSchema": {
+				"$ref": "#"
+			}
+		},
+		{
+			//IllnessController.Add
+			"title": "Save illness",
+			"href": {
+				"template": "?clearAllRealized={clearAllRealized}",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"clearAllRealized": {
+						"type": "boolean",
+						"description": "Clear all realized hours (including first day)"
+					}
+				},
+				"required": [ "nodeId" ]
+			},
+			"rel": "create",
+			"method": "POST",
+			"schema": {
+				"$ref": "#"
+			},
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"illnessId": { "type": "integer" }
+				}
+			},
+			"errors": [
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1112" ] },
+						"message": { "enum": [ "ERR_SLPERIOD_OVERLAP" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1006" ] },
+						"message": { "enum": [ "ERR_PERIOD_TO_BIGGER_THAN_FROM" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "21" ] },
+						"message": { "enum": [ "ERR_NO_DATA" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "219" ] },
+						"message": { "enum": [ "ERR_AGREED_PERIOD_DATA_MODIFICATION" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1607" ] },
+						"message": { "enum": [ "ERR_HC_NOT_EXISTS" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1210" ] },
+						"message": { "enum": [ "ERR_ILLNESS_PERCENTAGE" ] }
+					}
+				}
+			]
+		},
+		{
+			//IllnessController.Edit
+			"title": "Edit illness",
+			"href": {
+				"template": "/{illnessId}?clearAllRealized={clearAllRealized}",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"illnessId": {
+						"type": "integer",
+						"description": "Illness id"
+					},
+					"clearAllRealized": {
+						"type": "boolean",
+						"description": "Clear all realized hours (including first day)"
+					}
+				},
+				"required": [ "nodeId", "illnessId" ]
+			},
+			"rel": "update",
+			"method": "PUT",
+			"schema": {
+				"$ref": "#"
+			},
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"illnessId": { "type": "integer" }
+				}
+			},
+			"errors": [
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1112" ] },
+						"message": { "enum": [ "ERR_SLPERIOD_OVERLAP" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1006" ] },
+						"message": { "enum": [ "ERR_PERIOD_TO_BIGGER_THAN_FROM" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "21" ] },
+						"message": { "enum": [ "ERR_NO_DATA" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1607" ] },
+						"message": { "enum": [ "ERR_HC_NOT_EXISTS" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1210" ] },
+						"message": { "enum": [ "ERR_ILLNESS_PERCENTAGE" ] }
+					}
+				}
+			]
+		},
+		{
+			//IllnessContrtoller.UpdateIllnessEnd
+			"title": "Update illness end",
+			"href": {
+				"template": "/{illnessId}/end",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"illnessId": {
+						"type": "integer",
+						"description": "Illness id"
+					}
+				},
+				"required": [ "nodeId", "illnessId", "toDate" ]
+			},
+			"rel": "update",
+			"method": "PUT",
+			"schema": {
+				"$ref": "#"
+			},
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"illnessId": { "type": "integer" }
+				}
+			},
+			"errors": [
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1112" ] },
+						"message": { "enum": [ "ERR_SLPERIOD_OVERLAP" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1006" ] },
+						"message": { "enum": [ "ERR_PERIOD_TO_BIGGER_THAN_FROM" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "21" ] },
+						"message": { "enum": [ "ERR_NO_DATA" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1111" ] },
+						"message": { "enum": [ "ERR_VACATION_OVERLAP" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1607" ] },
+						"message": { "enum": [ "ERR_HC_NOT_EXISTS" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1210" ] },
+						"message": { "enum": [ "ERR_ILLNESS_PERCENTAGE" ] }
+					}
+				}
+			]
+		},
+		{
+			//IllnessController.Delete
+			"title": "Delete illness by id",
+			"href": {
+				"template": "/{illnessId}/",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"illnessId": {
+						"type": "integer",
+						"description": "Illness id"
+					}
+				},
+				"required": [ "nodeId", "illnessId" ]
+			},
+			"rel": "delete",
+			"method": "DELETE",
+			"errors": [
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1500" ] },
+						"message": { "enum": [ "ERR_RULE_SET_NOT_EXISTS" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "21" ] },
+						"message": { "enum": [ "ERR_NO_DATA" ] }
+					}
+				}
+			]
+		},
+		{
+			//IllnessController.DeleteHistory
+			"title": "Delete illness history by history id",
+			"href": {
+				"template": "/{illnessId}/",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node id"
+					},
+					"historyId": {
+						"type": "integer",
+						"description": "History id"
+					}
+				},
+				"required": [ "nodeId", "illnessId" ]
+			},
+			"rel": "delete",
+			"method": "DELETE",
+			"errors": [
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "1211" ] },
+						"message": { "enum": [ "ERR_ILLNESS_WITHOUT_HISTORY" ] }
+					}
+				},
+				{
+					"code": 500,
+					"description": "Internal Server Error",
+					"schema": {
+						"type": "object",
+						"code": { "enum": [ "21" ] },
+						"message": { "enum": [ "ERR_NO_DATA" ] }
+					}
+				}
+			]
+		},
+		{
+			//IllnessController.GetIllnessHistoryForPeriod
+			"title": "Get list of illnesses with history details for selected period",
+			"href": {
+				"template": "/{fromDate}/{toDate}/includeHistory/",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node ID"
+					},
+					"fromDate": {
+						"type": "string",
+						"format": "date",
+						"description": "Start Date"
+					},
+					"toDate": {
+						"type": "string",
+						"format": "date",
+						"description": "End Date"
+					}
+				},
+				"required": [ "nodeId", "fromDate", "toDate" ]
+			},
+			"schema": {
+				"type": "object",
+				"properties": {
+					"subtree": {
+						"type": "boolean",
+						"description": "Include sub nodes"
+					}
+				}
+			},
+			"rel": "instances",
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"illnessId": {
+						"type": "integer"
+					},
+					"employee": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"illnessConfirmationStatus": {
+						"enum": [ 0, 1, 2 ],
+						"enumNames": [ "None", "Confirmed", "Unconfirmed" ]
+					},
+					"isIllnessPrefilled": {
+						"type": "boolean"
+					},
+					"externalId": {
+						"type": "string"
+					},
+					"continuedIllnessId": {
+						"type": [ "integer", "null" ]
+					},
+					"isClosed": {
+						"type": "boolean"
+					},
+					"fromDate": {
+						"type": "string",
+						"format": "date"
+					},
+					"toDate": {
+						"type": "string",
+						"format": "date"
+					},
+					"fromDateTime": {
+						"type": "string",
+						"format": "datetime"
+					},
+					"toDateTime": {
+						"type": "string",
+						"format": "datetime"
+					},
+					"illnessHistory": {
+						"type": "object",
+						"properties": {
+							"list": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"id": {
+											"type": "integer"
+										},
+										"hourCode": {
+											"type": "integer"
+										},
+										"hcodeDescription": {
+											"type": "string"
+										},
+										"abbr": {
+											"type": "string"
+										},
+										"partialIllnessPercentage": {
+											"type": "number"
+										},
+										"workTherapyPercentage": {
+											"type": [ "number", "null" ]
+										},
+										"validFromDate": {
+											"type": "string",
+											"format": "date"
+										},
+										"validToDate": {
+											"type": "string",
+											"format": "date"
+										},
+										"validFromTime": {
+											"type": [ "string", "null" ],
+											"format": "time"
+										},
+										"validToTime": {
+											"type": [ "string", "null" ],
+											"format": "time"
+										},
+										"validFromDateTime": {
+											"type": "string",
+											"format": "datetime"
+										},
+										"validToDateTime": {
+											"type": "string",
+											"format": "datetime"
+										},
+										"extraData": {
+											"type": [ "object", "null" ],
+											"additionalProperties": {
+												"type": "object",
+												"properties": {
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			//IllnessController.GetIllnessesForPeriod
+			"title": "Get list of illnesses without history details for selected period",
+			"href": {
+				"template": "/{fromDate}/{toDate}/",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node ID"
+					},
+					"fromDate": {
+						"type": "string",
+						"format": "date",
+						"description": "Start Date"
+					},
+					"toDate": {
+						"type": "string",
+						"format": "date",
+						"description": "End Date"
+					}
+				},
+				"required": [ "nodeId", "fromDate", "toDate" ]
+			},
+			"schema": {
+				"type": "object",
+				"properties": {
+					"subtree": {
+						"type": "boolean",
+						"description": "Include sub nodes"
+					}
+				}
+			},
+			"rel": "instances",
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"historyId": {
+						"type": "integer"
+					},
+					"illnessConfirmationStatus": {
+						"enum": [ 0, 1, 2 ],
+						"enumNames": [ "None", "Confirmed", "Unconfirmed" ]
+					},
+					"isIllnessPrefilled": {
+						"type": "boolean"
+					},
+					"externalId": {
+						"type": "string"
+					},
+					"partialIllnessPercentage": {
+						"type": [ "number" ]
+					},
+					"workTherapyPercentage": {
+						"type": [ "number", "null" ]
+					},
+					"workTherapyPercentageDouble": {
+						"type": [ "number" ]
+					},
+					"continuedIllnessId": {
+						"type": [ "integer", "null" ]
+					},
+					"isClosed": {
+						"type": "boolean"
+					},
+					"extraData": {
+						"type": [ "object", "null" ],
+						"additionalProperties": {
+							"type": "object",
+							"properties": {
+							}
+						}
+					},
+					"id": {
+						"type": "integer"
+					},
+					"employeeId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"hcodeDescription": {
+						"type": "string"
+					},
+					"hcode": {
+						"type": "string"
+					},
+					"abbr": {
+						"type": "string"
+					},
+					"hcodeId": {
+						"type": "integer"
+					},
+					"fromDate": {
+						"type": "string",
+						"format": "date"
+					},
+					"toDate": {
+						"type": "string",
+						"format": "date"
+					},
+					"fromTime": {
+						"type": [ "string", "null" ],
+						"format": "time"
+					},
+					"toTime": {
+						"type": [ "string", "null" ],
+						"format": "time"
+					},
+					"fromDateTime": {
+						"type": "string",
+						"format": "datetime"
+					},
+					"toDateTime": {
+						"type": "string",
+						"format": "datetime"
+					}
+				}
+			}
+		}
+	]
+}
