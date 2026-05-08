@@ -1,63 +1,5 @@
 (function(){
   const SESSION_KEY = 'manus_api_explorer_session';
-  const LOCAL_SCHEMA_INDEX_URL = './schemas/index.json';
-  let LOCAL_SCHEMA_INDEX = [];
-  const SCHEMA_SOURCE_BY_PATH = Object.create(null); // values: 'live' or 'local'
-  let currentSchemaSource = '';
-
-  function stripJsonComments(text){
-    let out = '';
-    let inString = false;
-    let quote = '';
-    let escaped = false;
-    for (let i = 0; i < text.length; i++){
-      const c = text[i];
-      const n = text[i + 1];
-      if (inString){
-        out += c;
-        if (escaped){ escaped = false; continue; }
-        if (c === '\\'){ escaped = true; continue; }
-        if (c === quote){ inString = false; quote = ''; }
-        continue;
-      }
-      if (c === '"' || c === "'"){ inString = true; quote = c; out += c; continue; }
-      if (c === '/' && n === '/'){
-        while (i < text.length && text[i] !== '\n') i++;
-        out += '\n';
-        continue;
-      }
-      if (c === '/' && n === '*'){
-        i += 2;
-        while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++;
-        i++;
-        continue;
-      }
-      out += c;
-    }
-    return out;
-  }
-
-  async function fetchLocalSchemaIndex(){
-    const resp = await fetch(LOCAL_SCHEMA_INDEX_URL, { cache: 'no-store' });
-    if (!resp.ok) throw new Error('Failed to load local schema index: HTTP ' + resp.status);
-    LOCAL_SCHEMA_INDEX = await resp.json();
-    return LOCAL_SCHEMA_INDEX;
-  }
-
-  function findLocalSchemaEntry(schemaPath){
-    return (LOCAL_SCHEMA_INDEX || []).find(x => String(x.path || '') === String(schemaPath || ''));
-  }
-
-  async function fetchLocalSchemaDoc(schemaPath){
-    const entry = findLocalSchemaEntry(schemaPath);
-    if (!entry || !entry.file) throw new Error('No local schema file configured for ' + schemaPath);
-    const url = './schemas/' + String(entry.file).replace(/^\/+/, '');
-    const resp = await fetch(url, { cache: 'no-store' });
-    const text = await resp.text();
-    if (!resp.ok) throw new Error('Local schema fetch failed: HTTP ' + resp.status + ' — ' + url);
-    try { return JSON.parse(stripJsonComments(text)); }
-    catch (e) { throw new Error('Local schema is not valid JSON/JSON-with-comments: ' + entry.file + ' — ' + e.message); }
-  }
 
   const endpointEl = document.getElementById('endpoint');
   const clientEl = document.getElementById('client');
@@ -2574,12 +2516,113 @@ function renderParamsForm(op){
     renderParamsForm(op);
   }
 
-  // ---------- Local schema resources loaded from ./schemas/index.json ----------
-  let SCHEMA_RESOURCES = [];
+  // ---------- Hardcoded schema resources (deprecated /api/dev/schema) ----------
+  const SCHEMA_RESOURCES = [
+    "/schema/node/cost-schedule",
+    "/schema/node/employee/schedule-availability",
+    "/schema/node/presence-info",
+    "/schema/node/hourcode",
+    "/schema/node/contract",
+    "/schema/node/task",
+    "/schema/node/turnover",
+    "/schema/node/employee/confirmation-date",
+    "/schema/node/employee/initial-balance",
+    "/schema/node/extra-opening",
+    "/schema/node/hours",
+    "/schema/node/realized-hours",
+    "/schema/user/message",
+    "/schema/node/employee-compact",
+    "/schema/nationality",
+    "/schema/node/vacation-status",
+    "/schema/node/realization-view",
+    "/schema/kaba/clock",
+    "/schema/node/employee/vacation",
+    "/schema/node/holiday",
+    "/schema/custom/node/realization-spread",
+    "/schema/node/card-management",
+    "/schema/turnoverimport",
+    "/schema/node/agency",
+    "/schema/node/employee",
+    "/schema/node/hourcode-group",
+    "/schema/node/employee/department",
+    "/schema/node/yearly-vacation",
+    "/schema/node/employee/break",
+    "/schema/node/employee/task",
+    "/schema/node/employee/vacation-request",
+    "/schema/node/employee/operation",
+    "/schema/node/employee/realized-hours",
+    "/schema/node/employee/contract",
+    "/schema/node/salary-year",
+    "/schema/node/employee/presence-info",
+    "/schema/node/employee/absence",
+    "/schema/node/confirmation",
+    "/schema/node/budget",
+    "/schema/node/cost-realization",
+    "/schema/node/schedule-search",
+    "/schema/node/salary-period",
+    "/schema/node/schedule-definition",
+    "/schema/node/clock",
+    "/schema/node/extra-budget",
+    "/schema/node/compensation-realization",
+    "/schema/culture",
+    "/schema/node/schedule-agreement",
+    "/schema/node/week-view",
+    "/schema/node/salary-group",    
+    "/schema/node/schedule-summary",
+    "/schema/node/opening-hours",
+    "/schema/node/employee/addendum",
+    "/schema/node/employee/properties",
+    "/schema/node/employee-type",
+    "/schema/node/temp-employee",
+    "/schema/node/schedule-job",
+    "/schema/node/function",
+    "/schema/node/absence",
+    "/schema/node/salary-data",
+    "/schema/node/employee/schedule",
+    "/schema/node/vacation",
+    "/schema/node/employee/summary-hours",
+    "/schema/temper/event",
+    "/schema/node/employee/vacation-status",
+    "/schema/import",
+    "/schema/node/budget/entry-prognosis",
+    "/schema/node/property",
+    "/schema/node/appointment",
+    "/schema/node/salary-set",
+    "/schema/node/balance",
+    "/schema/department",
+    "/schema/node/department",
+    "/schema/node",
+    "/schema/node/visibility-tree",
+    "/schema/node/account-types",
+    "/schema/node/employee/hours",
+    "/schema/node/vacation-request",
+    "/schema/node/vacation-request/agreement",
+    "/schema/node/employee/shift",
+    "/schema/node/basic-schedule-type",
+    "/schema/node/employee/schedule-basic",
+    "/schema/node/shift",
+    "/schema/node/employee/agreement",
+    "/schema/node/employee/agreement-date",
+    "/schema/node/agreement",
+    "/schema/node/agreement/current",
+    "/schema/user/own",
+    "/schema/user/me",
+    "/schema/user/node-tree",
+    "/schema/user/list",
+    "/schema/node/employee/illness",
+    "/schema/node/illness",
+	"/schema/node/illnesscase",
+    "/schema/node/employee/balance",
+    "/schema/node/employee/balance-operation",
+    "/schema/country",
+    "/schema/node/country",
+    "/schema/node/schedule",
+    "/schema/node/available-employee",
+    "/schema/node/schedule-hours"
+  ];
 
   function initSchemaResourceDropdown(){
     schemaResourceEl.innerHTML = '';
-    const titleByPath = Object.fromEntries((LOCAL_SCHEMA_INDEX || []).map(x => [x.path, x.title || x.path]));
 
     // Build tree: group by first segment after "schema/"
     const tree = {};
@@ -2620,8 +2663,7 @@ for (const item of items) {
   opt.value = item.full;
 
   const depth = item.parts.length - 1;
-  const rawLabel = (titleByPath[item.full] || item.parts[depth]);
-  const label = getSchemaDisplayLabel(item.full, rawLabel);
+  const label = item.parts[depth];
 
   const prefix = depth
     ? '\u00A0\u00A0'.repeat(depth) + '└ '
@@ -2694,59 +2736,10 @@ for (const item of items) {
 
   let currentSchemaDoc = null;
 
-  function buildSchemaBasePath(){
-    const endpoint = String(endpointEl.value || '').trim().replace(/\/+$/, '');
-    const client = normalizeSegment(clientEl.value);
-    const instance = normalizeSegment(instanceEl.value);
-    const isTestOrDemo = endpoint.includes('server-test') || endpoint.includes('server-demo');
-
-    if (!endpoint) return '';
-    if (!client) return endpoint;
-    if (isTestOrDemo){
-      if (!instance) return endpoint + '/' + client;
-      return endpoint + '/' + client + '/' + instance;
-    }
-    return endpoint + '/' + client;
-  }
-
   function getResolvedSchemaUrl(){
-    const base = buildSchemaBasePath();
     const schemaPath = String(schemaResourceEl.value || '').trim();
     if (!schemaPath) return '';
-    const knownSource = SCHEMA_SOURCE_BY_PATH[schemaPath] || currentSchemaSource;
-    if (knownSource === 'local'){
-      const entry = findLocalSchemaEntry(schemaPath);
-      if (entry && entry.file) return new URL('./schemas/' + entry.file, window.location.href).href;
-    }
-    if (!base) {
-      const entry = findLocalSchemaEntry(schemaPath);
-      return entry && entry.file ? new URL('./schemas/' + entry.file, window.location.href).href : '';
-    }
-    return base.replace(/\/+$/, '') + schemaPath;
-  }
-
-  async function fetchRemoteSchemaDoc(schemaPath){
-    const base = buildSchemaBasePath();
-    if (!base) throw new Error('Schema base path is empty. Fill endpoint + client; fill instance for TEST/DEMO.');
-    const url = base.replace(/\/+$/, '') + schemaPath;
-    console.log('Remote schema URL:', url);
-    const headers = Object.assign({'Accept':'application/json'}, (function(){ try{ return getAuthHeader(); }catch(e){ return {}; } })());
-    const resp = await fetch(url, { headers });
-    const text = await resp.text();
-    if (!resp.ok) throw new Error('Remote schema fetch failed: HTTP ' + resp.status + ' ' + resp.statusText + ' — ' + (text||''));
-    try { return text ? JSON.parse(stripJsonComments(text)) : null; }
-    catch(e){ throw new Error('Remote schema response not JSON (first 200 chars): ' + (text||'').slice(0,200)); }
-  }
-
-  function getSchemaDisplayLabel(path, fallbackLabel){
-    const label = fallbackLabel || path;
-    return SCHEMA_SOURCE_BY_PATH[path] === 'local' ? '**' + label + '**' : label;
-  }
-
-  function refreshSchemaResourceLabels(){
-    const selected = schemaResourceEl.value;
-    initSchemaResourceDropdown();
-    if (selected && Array.from(schemaResourceEl.options).some(o => o.value === selected)) schemaResourceEl.value = selected;
+    return buildLiveSchemaUrl(schemaPath);
   }
 
   async function copyTextToClipboard(text){
@@ -2769,37 +2762,104 @@ for (const item of items) {
   }
 
 
+
+  function isLiveEndpoint(endpoint){
+    const ep = String(endpoint || '');
+    return ep.includes('server.manus.plus') && !ep.includes('server-test') && !ep.includes('server-demo');
+  }
+
+  function buildSchemaBasePath(){
+    const endpoint = String(endpointEl.value || '').trim().replace(/\/+$/,'');
+    const client = normalizeSegment(clientEl.value);
+    const instance = normalizeSegment(instanceEl.value);
+
+    if (!endpoint) return '';
+    if (!client) return endpoint;
+
+    if (isLiveEndpoint(endpoint)) return endpoint + '/' + client;
+
+    if (!instance) return endpoint + '/' + client;
+    return endpoint + '/' + client + '/' + instance;
+  }
+
+  function buildLiveSchemaUrl(schemaPath){
+    const base = buildSchemaBasePath();
+    if (!base) return '';
+    return base.replace(/\/+$/,'') + String(schemaPath || '');
+  }
+
+  function localSchemaCandidates(schemaPath){
+    const clean = String(schemaPath || '').replace(/^\/+/, '').replace(/\/+$/,'');
+    const parts = clean.split('/').filter(Boolean);
+    const last = parts[parts.length - 1] || 'schema';
+    const withoutSchema = parts[0] === 'schema' ? parts.slice(1) : parts;
+    const dashed = withoutSchema.join('-');
+    const underscored = withoutSchema.join('_');
+    const out = [
+      './schemas/' + dashed + '.json',
+      './schemas/' + underscored + '.json',
+      './schemas/' + last + '.json'
+    ];
+    return Array.from(new Set(out));
+  }
+
+  function markSelectedSchemaLocalFallback(){
+    const selected = schemaResourceEl.options[schemaResourceEl.selectedIndex];
+    if (!selected) return;
+    if (!selected.textContent.startsWith('**')) selected.textContent = '**' + selected.textContent + '**';
+  }
+
+  async function fetchLocalSchema(schemaPath){
+    const candidates = localSchemaCandidates(schemaPath);
+    let lastErr = null;
+    for (const url of candidates){
+      try{
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok){
+          lastErr = new Error(url + ' HTTP ' + resp.status);
+          continue;
+        }
+        console.log('LOCAL SCHEMA URL:', url);
+        return await resp.json();
+      }catch(e){
+        lastErr = e;
+      }
+    }
+    throw new Error('Local fallback schema not found. Tried: ' + candidates.join(', ') + (lastErr ? ' — ' + (lastErr.message || lastErr) : ''));
+  }
+
   async function loadResourceSchema(){
     try{
       setSchemaStatus('Loading schema…','');
-      const base = buildBasePath();
-      const schemaPath = String(schemaResourceEl.value||'').trim();
+
+      const schemaPath = String(schemaResourceEl.value || '').trim();
       if (!schemaPath) throw new Error('No schema resource selected.');
 
+      const liveUrl = buildLiveSchemaUrl(schemaPath);
+      if (!liveUrl) throw new Error('Schema URL is empty. Fill endpoint + client' + (isLiveEndpoint(endpointEl.value) ? '.' : ' + instance.'));
+
+      console.log('LIVE SCHEMA URL:', liveUrl);
+
       let doc = null;
-      let sourceLabel = 'live';
-      let remoteErr = null;
-      if (base){
-        try{
-          doc = await fetchRemoteSchemaDoc(schemaPath);
-        }catch(e){
-          remoteErr = e;
-        }
+      let usedLocalFallback = false;
+
+      try{
+        const headers = Object.assign({'Accept':'application/json'}, (function(){ try{ return getAuthHeader(); }catch(e){ return {}; } })());
+        const resp = await fetch(liveUrl, { headers });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText + (text ? ' — ' + text.slice(0,300) : ''));
+        try{ doc = text ? JSON.parse(text) : null; }
+        catch(e){ throw new Error('Live schema response not JSON (first 200 chars): ' + (text || '').slice(0,200)); }
+      }catch(liveErr){
+        console.warn('Live schema failed; trying local fallback:', liveErr);
+        usedLocalFallback = true;
+        doc = await fetchLocalSchema(schemaPath);
       }
-      if (!doc){
-        try{
-          doc = await fetchLocalSchemaDoc(schemaPath);
-          sourceLabel = 'local';
-        }catch(localErr){
-          if (remoteErr) throw remoteErr;
-          throw localErr;
-        }
-      }
-      SCHEMA_SOURCE_BY_PATH[schemaPath] = sourceLabel === 'local' ? 'local' : 'live';
-      currentSchemaSource = SCHEMA_SOURCE_BY_PATH[schemaPath];
-      refreshSchemaResourceLabels();
+
       if (!doc || typeof doc !== 'object') throw new Error('Schema document is empty.');
       if (!doc.baseUri || !Array.isArray(doc.links)) throw new Error('Schema document missing baseUri/links.');
+
+      if (usedLocalFallback) markSelectedSchemaLocalFallback();
 
       currentSchemaDoc = doc;
       schemaJsonEl.textContent = safeStringify(doc, 250000);
@@ -2819,9 +2879,8 @@ for (const item of items) {
         };
       }).filter(op => op.path && op.path.includes('/api/'));
 
-      setSchemaStatus('Loaded from ' + sourceLabel + ': ' + schemaPath + ' → ' + ops.length + ' operation(s).','ok');
+      setSchemaStatus('Loaded: ' + schemaPath + ' → ' + ops.length + ' operation(s).' + (usedLocalFallback ? ' Used local fallback.' : ' Used live schema.'),'ok');
 
-      // Let renderOpList() auto-select the first GET and drive the right pane.
       clearResponse();
       selectedOp = null;
       renderOpList();
@@ -2882,7 +2941,8 @@ for (const item of items) {
       if (schemaResourceEl.options.length > 0 && !schemaResourceEl.value) {
         schemaResourceEl.selectedIndex = 0;
       }
-      setSchemaStatus('Authenticated. Choose a schema resource, then click Load schema.', 'ok');
+      afterLoginSuccess();
+      setSchemaStatus('Authenticated. Choose a schema resource and click Load schema.', 'ok');
 
     }catch(e){
       setAuthStatus(String(e && e.message ? e.message : e),'danger');
@@ -2944,8 +3004,8 @@ for (const item of items) {
 
   opFilterEl.addEventListener('input', renderOpList);
 
-  // init — deferred so DOM is fully ready and relative GitHub Pages paths resolve correctly
-  document.addEventListener('DOMContentLoaded', async function(){
+  // init — deferred so DOM is fully ready and base URL is resolved before schema auto-loads
+  document.addEventListener('DOMContentLoaded', function(){
     updateBaseUrl();
 
     const s = readSession();
@@ -2954,42 +3014,35 @@ for (const item of items) {
     updateTokenPreview();
     updateRequestHeadersPreview();
 
-    try{
-      await fetchLocalSchemaIndex();
-      SCHEMA_RESOURCES = LOCAL_SCHEMA_INDEX.map(x => x.path).filter(Boolean);
-      initSchemaResourceDropdown();
+    // 1) Initialize schema dropdown
+    initSchemaResourceDropdown();
 
-      if (schemaResourceEl.options.length > 0) {
-        schemaResourceEl.selectedIndex = 0;
-        setSchemaStatus('Local schema catalog loaded. Choose a resource, then click Load schema.', 'ok');
-        if (s && s.token && s.scope_basePath === currentAuthScope()) afterLoginSuccess();
+    // 2) Select first resource, but do not load it automatically.
+    if (schemaResourceEl.options.length > 0) {
+      schemaResourceEl.selectedIndex = 0;
+
+      if (s && s.token && s.scope_basePath === currentAuthScope()) {
+        afterLoginSuccess();
+        setSchemaStatus('Authenticated. Choose a schema resource and click Load schema.', 'ok');
       } else {
-        setSchemaStatus('Local schema index is empty.', 'warn');
+        setSchemaStatus('Not authenticated. Log in, then click Load schema.', 'warn');
       }
-    }catch(e){
-      setSchemaStatus(String(e && e.message ? e.message : e), 'danger');
     }
   });
 
   // 3) Still support the manual button
   btnLoadResource.addEventListener('click', loadResourceSchema);
 
-  // 4) When user changes the selected schema, do not probe/load automatically.
-  // The catalog is local; live schema is tried only after clicking Load schema.
+  // 4) Changing schema only selects it. Loading happens when clicking Load schema.
   schemaResourceEl.addEventListener('change', () => {
-    clearResponse();
     ops = [];
     selectedOp = null;
     opListEl.innerHTML = '';
     paramArea.innerHTML = '';
     requestUrlEl.value = '';
     renderRequestUrlPreview('');
-    opTitleEl.textContent = '(none)';
-    opDescEl.textContent = '';
-    btnSend.disabled = true;
-    btnCopyUrl.disabled = true;
-    if (!schemaResourceEl.value) return;
-    setSchemaStatus('Selected ' + schemaResourceEl.value + '. Click Load schema to try live first, then local fallback.', '');
+    clearResponse();
+    setSchemaStatus('Schema selected. Click Load schema.', '');
   });
 
   btnCopyUrl.addEventListener('click', async ()=>{
