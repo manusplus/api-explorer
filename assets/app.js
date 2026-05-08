@@ -2879,14 +2879,10 @@ for (const item of items) {
       updateTokenPreview();
       updateRequestHeadersPreview();
 
-      // Always reload schema on login — a different user on the same scope may have
-      // different node access, so we can't safely reuse the previous op list.
-      if (schemaResourceEl.options.length > 0 && schemaResourceEl.value) {
-        // Keep the currently selected resource, just reload it
-      } else if (schemaResourceEl.options.length > 0) {
+      if (schemaResourceEl.options.length > 0 && !schemaResourceEl.value) {
         schemaResourceEl.selectedIndex = 0;
       }
-      loadResourceSchema();
+      setSchemaStatus('Authenticated. Choose a schema resource, then click Load schema.', 'ok');
 
     }catch(e){
       setAuthStatus(String(e && e.message ? e.message : e),'danger');
@@ -2965,8 +2961,7 @@ for (const item of items) {
 
       if (schemaResourceEl.options.length > 0) {
         schemaResourceEl.selectedIndex = 0;
-        setSchemaStatus('Local schema index loaded. Choose a resource or click Load schema.', 'ok');
-        loadResourceSchema();
+        setSchemaStatus('Local schema catalog loaded. Choose a resource, then click Load schema.', 'ok');
         if (s && s.token && s.scope_basePath === currentAuthScope()) afterLoginSuccess();
       } else {
         setSchemaStatus('Local schema index is empty.', 'warn');
@@ -2979,16 +2974,22 @@ for (const item of items) {
   // 3) Still support the manual button
   btnLoadResource.addEventListener('click', loadResourceSchema);
 
-  // 4) When user changes the selected schema, reload automatically (tenant-aware)
+  // 4) When user changes the selected schema, do not probe/load automatically.
+  // The catalog is local; live schema is tried only after clicking Load schema.
   schemaResourceEl.addEventListener('change', () => {
+    clearResponse();
+    ops = [];
+    selectedOp = null;
+    opListEl.innerHTML = '';
+    paramArea.innerHTML = '';
+    requestUrlEl.value = '';
+    renderRequestUrlPreview('');
+    opTitleEl.textContent = '(none)';
+    opDescEl.textContent = '';
+    btnSend.disabled = true;
+    btnCopyUrl.disabled = true;
     if (!schemaResourceEl.value) return;
-
-    const session = readSession();
-    if (session && session.token && session.scope_basePath === currentAuthScope()) {
-      loadResourceSchema();
-    } else {
-      setSchemaStatus('Not authenticated. Log in first.', 'warn');
-    }
+    setSchemaStatus('Selected ' + schemaResourceEl.value + '. Click Load schema to try live first, then local fallback.', '');
   });
 
   btnCopyUrl.addEventListener('click', async ()=>{
