@@ -16,6 +16,7 @@
   const opFilterEl = document.getElementById('opFilter');
   const schemaResourceEl = document.getElementById('schemaResource');
   const btnLoadResource = document.getElementById('btnLoadResource');
+  if (btnLoadResource) btnLoadResource.style.display = 'none';
   const schemaJsonEl = document.getElementById('schemaJson');
 
   const opListEl = document.getElementById('opList');
@@ -652,19 +653,7 @@ function todayISO(){
       opListEl.appendChild(div);
     }
 
-    // Auto-select first GET on initial load. Non-GET ops are selectable but won't show Send.
-    // Guard: never recurse back into selectOperation while already rendering the list
-    if (!_renderingOpList) {
-      const selectedStillValid = selectedOp && filtered.includes(selectedOp);
-
-      if (!selectedOp || !selectedStillValid) {
-        const firstGet = filtered.find(o => (o.method || '').toUpperCase() === 'GET');
-        const fallback = filtered[0];
-        const toSelect = firstGet || fallback;
-
-        if (toSelect) selectOperation(toSelect);
-      }
-    }
+    // Do not auto-select an operation. The user must click the GET operation they want.
   }
 
   function autoSelectFirstGetOrFirstOp() {
@@ -2796,8 +2785,8 @@ for (const item of items) {
     const dashed = withoutSchema.join('-');
     const underscored = withoutSchema.join('_');
     const out = [
-      './schemas/' + dashed + '.json',
       './schemas/' + underscored + '.json',
+      './schemas/' + dashed + '.json',
       './schemas/' + last + '.json'
     ];
     return Array.from(new Set(out));
@@ -2942,7 +2931,7 @@ for (const item of items) {
         schemaResourceEl.selectedIndex = 0;
       }
       afterLoginSuccess();
-      setSchemaStatus('Authenticated. Choose a schema resource and click Load schema.', 'ok');
+      setSchemaStatus('Authenticated. Choose a schema resource to load it.', 'ok');
 
     }catch(e){
       setAuthStatus(String(e && e.message ? e.message : e),'danger');
@@ -3023,9 +3012,9 @@ for (const item of items) {
 
       if (s && s.token && s.scope_basePath === currentAuthScope()) {
         afterLoginSuccess();
-        setSchemaStatus('Authenticated. Choose a schema resource and click Load schema.', 'ok');
+        setSchemaStatus('Authenticated. Choose a schema resource to load it.', 'ok');
       } else {
-        setSchemaStatus('Not authenticated. Log in, then click Load schema.', 'warn');
+        setSchemaStatus('Not authenticated. Log in, then choose a schema resource.', 'warn');
       }
     }
   });
@@ -3033,8 +3022,10 @@ for (const item of items) {
   // 3) Still support the manual button
   btnLoadResource.addEventListener('click', loadResourceSchema);
 
-  // 4) Changing schema only selects it. Loading happens when clicking Load schema.
+  // 4) Changing schema automatically loads the selected schema.
   schemaResourceEl.addEventListener('change', () => {
+    if (!schemaResourceEl.value) return;
+
     ops = [];
     selectedOp = null;
     opListEl.innerHTML = '';
@@ -3042,7 +3033,13 @@ for (const item of items) {
     requestUrlEl.value = '';
     renderRequestUrlPreview('');
     clearResponse();
-    setSchemaStatus('Schema selected. Click Load schema.', '');
+
+    const session = readSession();
+    if (session && session.token && session.scope_basePath === currentAuthScope()) {
+      loadResourceSchema();
+    } else {
+      setSchemaStatus('Schema selected. Log in to load it.', 'warn');
+    }
   });
 
   btnCopyUrl.addEventListener('click', async ()=>{
