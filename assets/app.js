@@ -2642,7 +2642,20 @@ function renderParamsForm(op){
       tree[root].push({ full, parts });
     }
 
-    const roots = Object.keys(tree).sort((a, b) => a.localeCompare(b));
+    const rootOrder = ['node', 'employee', 'agreement', 'department'];
+
+const roots = Object.keys(tree).sort((a, b) => {
+  const ai = rootOrder.indexOf(a);
+  const bi = rootOrder.indexOf(b);
+
+  if (ai !== -1 || bi !== -1) {
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  }
+
+  return a.localeCompare(b);
+});
 
     for (const root of roots) {
       const group = document.createElement('optgroup');
