@@ -65,7 +65,6 @@
 	"required": [ "employeeId", "hCodeId", "description", "fromDate" ],
 	"links": [
 		{
-			//IllnessController.Get
 			"title": "Gets illness by id",
 			"href": {
 				"template": "/{illnessId}",
@@ -88,7 +87,6 @@
 			}
 		},
 		{
-			//IllnessController.Add
 			"title": "Save illness",
 			"href": {
 				"template": "?clearAllRealized={clearAllRealized}",
@@ -174,7 +172,6 @@
 			]
 		},
 		{
-			//IllnessController.Edit
 			"title": "Edit illness",
 			"href": {
 				"template": "/{illnessId}?clearAllRealized={clearAllRealized}",
@@ -255,7 +252,6 @@
 			]
 		},
 		{
-			//IllnessContrtoller.UpdateIllnessEnd
 			"title": "Update illness end",
 			"href": {
 				"template": "/{illnessId}/end",
@@ -341,7 +337,6 @@
 			]
 		},
 		{
-			//IllnessController.Delete
 			"title": "Delete illness by id",
 			"href": {
 				"template": "/{illnessId}/",
@@ -382,7 +377,6 @@
 			]
 		},
 		{
-			//IllnessController.DeleteHistory
 			"title": "Delete illness history by history id",
 			"href": {
 				"template": "/{illnessId}/",
@@ -423,7 +417,6 @@
 			]
 		},
 		{
-			//IllnessController.GetIllnessHistoryForPeriod
 			"title": "Get list of illnesses with history details for selected period",
 			"href": {
 				"template": "/{fromDate}/{toDate}/includeHistory/",
@@ -565,7 +558,6 @@
 			}
 		},
 		{
-			//IllnessController.GetIllnessesForPeriod
 			"title": "Get list of illnesses without history details for selected period",
 			"href": {
 				"template": "/{fromDate}/{toDate}/",

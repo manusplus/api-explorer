@@ -79,8 +79,8 @@
 				}
 			},
 			"mediaType": {
-				"application/json": { "$ref": "#" } //,
-				//"application/vnd.hropen.timecard+json": { "$ref": "http://hropen.us-west-2.elasticbeanstalk.com/schema/timecard#" }
+				"application/json": { "$ref": "#" },
+				"application/vnd.hropen.timecard+json": { "$ref": "http://hropen.us-west-2.elasticbeanstalk.com/schema/timecard#" }
 			},
 			"rel": "instances"
 		}
