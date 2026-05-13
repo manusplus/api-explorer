@@ -40,10 +40,9 @@
 				"type": "object",
 				"properties": {
 					"level": {
-						"type": "number",
-						//uncomment when jschema is updated to support not required enum parameters
-						//"enum": [ 1, 2, 3, 4, 5, 6, 7 ],
-						//"enumNames": [ "Organization", "Country", "Unit", "Division", "Region", "Cluster", "Branch" ],
+						"type": "number",						
+						"enum": [ 1, 2, 3, 4, 5, 6, 7 ],
+						"enumNames": [ "Organization", "Country", "Unit", "Division", "Region", "Cluster", "Branch" ],
 						"description": "Node level"
 					},
 					"depth": {
