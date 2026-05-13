@@ -1,0 +1,119 @@
+{
+	"$schema": "http://jschema.com/schema/wacs#",
+	"properties": {
+		"id": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"code": { "type": "string" },
+		"name": { "type": "string" },
+		"parentId": {
+			"type": "string",
+			"format": "uuid"
+		},
+		"parentCode": { "type": "string" },
+		"depth": { "type": "integer" },
+		"levelId": { "type": "integer" },
+		"levelName": { "type": "string" },
+		"categoryId": { "type": "integer" },
+		"categoryName": { "type": "string" },
+		"salary": { "type": "boolean" },
+		"address": { "type": "string" },
+		"email": { "type": "string" },
+		"regionAbbr": { "type": "string" },
+		"regionName": { "type": "string" },
+		"accessible": { "type": "boolean" },
+		"isSingle": { "type": "boolean" },
+		"isHourCodeGroupAttached": { "type": "boolean" }
+	},
+	"title": "Node",
+	"type": "object",
+	"baseUri": "api/node",
+	"links": [
+		{
+			"title": "Get all nodes",
+			"href": {
+				"template": "/"
+			},
+			"rel": "instances",
+			"schema": {
+				"type": "object",
+				"properties": {
+					"level": {
+						"type": "number",
+						//uncomment when jschema is updated to support not required enum parameters
+						//"enum": [ 1, 2, 3, 4, 5, 6, 7 ],
+						//"enumNames": [ "Organization", "Country", "Unit", "Division", "Region", "Cluster", "Branch" ],
+						"description": "Node level"
+					},
+					"depth": {
+						"type": "number",
+						"description": "Search depth",
+						"minimum": 0,
+						"maximum": 6
+					}
+				}
+			}
+		},
+		{
+			"title": "Get node",
+			"href": {
+				"template": "/{nodeId}/",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node Id"
+					}
+				},
+				"required": [ "nodeId" ]
+			},
+			"rel": "self"
+		},
+		{
+			"title": "Get employee available nodes",
+			"href": {
+				"template": "/{nodeId}/{employeeId}",
+				"vars": {
+					"nodeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Node Id"
+					},
+					"employeeId": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Employee Id"
+					}
+				},
+				"required": [ "nodeId", "employeeId" ]
+			},
+			"rel": "instances",
+			"schema": {
+				"type": "object",
+				"properties": {
+					"date": {
+						"type": "string",
+						"format": "date",
+						"description": "Reference date for which to take data - if omitted Today is used"
+					}
+				}
+			},
+			"targetSchema": {
+				"type": "object",
+				"properties": {
+					"employeeId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"nodeId": {
+						"type": "string",
+						"format": "uuid"
+					},
+					"nodeCode": { "type": "string" },
+					"nodeName": { "type": "string" }
+				}
+			}
+		}
+	]
+}
