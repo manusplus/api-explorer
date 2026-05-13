@@ -2612,16 +2612,29 @@ function renderParamsForm(op){
 
   function initSchemaResourceDropdown(){
     schemaResourceEl.innerHTML = '';
+	//HELPER
+	function getDisplayParts(schemaPath) {
+  const parts = String(schemaPath || '')
+    .replace(/^\/schema\//, '')
+    .replace(/^schema\//, '')
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter(Boolean);
 
+  if (parts[0] === 'node' && parts[1] === 'employee' && parts.length > 2) {
+    return ['employee', ...parts.slice(2)];
+  }
+
+  if (parts[0] === 'node' && parts[1] === 'agreement' && parts.length > 2) {
+    return ['agreement', ...parts.slice(2)];
+  }
+
+  return parts;
+}  
     // Build tree: group by first segment after "schema/"
     const tree = {};
     for (const full of SCHEMA_RESOURCES) {
-      const clean = full
-        .replace(/^\/schema\//, '')
-        .replace(/^schema\//, '')
-        .replace(/^\/+/, '');
-
-      const parts = clean.split('/').filter(Boolean);
+    const parts = getDisplayParts(full);
       if (!parts.length) continue;
 
       const root = parts[0]; // e.g. "node", "kaba", "user"
