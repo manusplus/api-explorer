@@ -672,31 +672,335 @@ function todayISO(){
     respJsonEl.style.display = (name==='json') ? '' : 'none';
     respTableEl.style.display = (name==='table') ? '' : 'none';
 
-    // keep Export CSV visibility in sync when switching tabs
-    if (btnExportCsv){
-      const hasTable = !!respTableEl.querySelector('table');
-      btnExportCsv.style.display = (name === 'table') ? '' : 'none';
-      btnExportCsv.disabled = !(name === 'table' && hasTable);
-    }
+    // keep copy/export buttons in sync when switching tabs
+    if (typeof updateResponseCopyExportState === 'function') updateResponseCopyExportState();
   }
 
-  function inferColumns(items, maxCols){
-    const set = new Set();
-    for (let i=0;i<Math.min(items.length,50);i++){
-      const it = items[i];
-      if (it && typeof it === 'object' && !Array.isArray(it)){
-        for (const k of Object.keys(it)){ set.add(k); if (set.size >= maxCols) return Array.from(set); }
+  function isPlainObject(v){
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  function flattenRow(obj, maxDepth = 2, prefix = '', out = {}){
+    if (!isPlainObject(obj)) return out;
+
+    for (const [key, value] of Object.entries(obj)){
+      const col = prefix ? (prefix + '.' + key) : key;
+
+      if (value == null){
+        out[col] = '';
+        continue;
+      }
+
+      if (Array.isArray(value)){
+        if (!value.length){
+          out[col] = '';
+        } else if (maxDepth > 0 && value.every(isPlainObject)){
+          out[col] = '[' + value.length + ']';
+
+          const first = value[0];
+          for (const [childKey, childVal] of Object.entries(first)){
+            const childCol = col + '[0].' + childKey;
+
+            if (childVal == null){
+              out[childCol] = '';
+            } else if (typeof childVal !== 'object'){
+              out[childCol] = childVal;
+            } else if (Array.isArray(childVal)){
+              out[childCol] = '[' + childVal.length + ']';
+            } else if (maxDepth > 1){
+              flattenRow(childVal, maxDepth - 1, childCol, out);
+            } else {
+              out[childCol] = '{...}';
+            }
+          }
+        } else {
+          out[col] = '[' + value.length + ']';
+        }
+        continue;
+      }
+
+      if (isPlainObject(value)){
+        if (maxDepth > 0){
+          flattenRow(value, maxDepth - 1, col, out);
+        } else {
+          out[col] = '{...}';
+        }
+        continue;
+      }
+
+      out[col] = value;
+    }
+
+    return out;
+  }
+
+  function inferColumns(items, maxDepth = 2){
+    const cols = new Set();
+
+    for (let i = 0; i < items.length; i++){
+      const flat = flattenRow(items[i], maxDepth);
+      for (const key of Object.keys(flat)) cols.add(key);
+    }
+
+    return Array.from(cols);
+  }
+
+  function formatCell(v){
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    if (typeof v === 'number') return String(v);
+    if (typeof v === 'string') return v;
+    if (Array.isArray(v)) return '[' + v.length + ']';
+    if (typeof v === 'object') return '{...}';
+    return String(v);
+  }
+
+  function objectMapToRows(obj, keyName = '_key'){
+    return Object.entries(obj || {}).map(([k, v]) => {
+      if (isPlainObject(v)) return { [keyName]: k, ...v };
+      return { [keyName]: k, value: v };
+    });
+  }
+
+  function getTableCandidates(data){
+    const candidates = [];
+
+    if (Array.isArray(data) && data.length && data.some(isPlainObject)){
+      candidates.push({ name: 'root', rows: data.filter(isPlainObject) });
+      return candidates;
+    }
+
+    if (!isPlainObject(data)) return candidates;
+
+    for (const [key, value] of Object.entries(data)){
+      if (Array.isArray(value) && value.length && value.some(isPlainObject)){
+        candidates.push({ name: key, rows: value.filter(isPlainObject) });
+        continue;
+      }
+
+      if (isPlainObject(value)){
+        const vals = Object.values(value);
+        if (vals.length && vals.every(v => v == null || isPlainObject(v) || typeof v !== 'object')){
+          candidates.push({ name: key, rows: objectMapToRows(value) });
+        }
       }
     }
-    return Array.from(set);
+
+    return candidates;
   }
-  function formatCell(v){
-    if (v===null||v===undefined) return '';
-    if (typeof v === 'string') return v;
-    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-    if (Array.isArray(v)) return '['+v.length+']';
-    if (typeof v === 'object') return '{…}';
-    return String(v);
+
+  function makeCell(text){
+    const td = document.createElement('td');
+    td.textContent = text;
+    td.title = text;
+    return td;
+  }
+
+  function buildTable(rows, cols){
+    const table = document.createElement('table');
+    table.className = 'responseTable';
+
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+
+    for (const c of cols){
+      const th = document.createElement('th');
+      th.textContent = c;
+      th.title = c;
+      trh.appendChild(th);
+    }
+
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const row of rows){
+      const tr = document.createElement('tr');
+      for (const c of cols){
+        tr.appendChild(makeCell(formatCell(row[c])));
+      }
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function createColumnSelector(allCols, selectedCols, onChange){
+    const wrap = document.createElement('div');
+    wrap.className = 'tableControls';
+
+    const details = document.createElement('details');
+    details.className = 'columnSelector';
+
+    const summary = document.createElement('summary');
+    summary.style.cursor = 'pointer';
+    summary.style.userSelect = 'none';
+    details.appendChild(summary);
+
+    const actions = document.createElement('div');
+    actions.className = 'columnSelectorActions';
+
+    function miniBtn(label, fn){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn mini';
+      btn.textContent = label;
+      btn.addEventListener('click', fn);
+      return btn;
+    }
+
+    const filter = document.createElement('input');
+    filter.type = 'text';
+    filter.placeholder = 'Filter columns...';
+    filter.className = 'columnFilter';
+
+    const list = document.createElement('div');
+    list.className = 'columnSelectorList';
+
+    function updateSummary(){
+      summary.textContent = 'Columns (' + selectedCols.size + '/' + allCols.length + ')';
+    }
+
+    function renderChecks(){
+      updateSummary();
+      list.innerHTML = '';
+      const q = String(filter.value || '').trim().toLowerCase();
+      const visibleCols = q ? allCols.filter(col => col.toLowerCase().includes(q)) : allCols;
+
+      for (const col of visibleCols){
+        const label = document.createElement('label');
+        label.className = 'columnOption';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = selectedCols.has(col);
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedCols.add(col);
+          else selectedCols.delete(col);
+
+          if (!selectedCols.size && allCols.length){
+            selectedCols.add(allCols[0]);
+          }
+
+          renderChecks();
+          onChange(Array.from(selectedCols));
+        });
+
+        const span = document.createElement('span');
+        span.textContent = col;
+        span.title = col;
+
+        label.appendChild(cb);
+        label.appendChild(span);
+        list.appendChild(label);
+      }
+
+      if (!visibleCols.length){
+        const empty = document.createElement('div');
+        empty.className = 'hint';
+        empty.textContent = 'No columns match the filter.';
+        list.appendChild(empty);
+      }
+    }
+
+    actions.appendChild(miniBtn('All', () => {
+      allCols.forEach(c => selectedCols.add(c));
+      renderChecks();
+      onChange(Array.from(selectedCols));
+    }));
+
+    actions.appendChild(miniBtn('None', () => {
+      selectedCols.clear();
+      if (allCols.length) selectedCols.add(allCols[0]);
+      renderChecks();
+      onChange(Array.from(selectedCols));
+    }));
+
+    actions.appendChild(miniBtn('Reset', () => {
+      selectedCols.clear();
+      allCols.forEach(c => selectedCols.add(c));
+      filter.value = '';
+      renderChecks();
+      onChange(Array.from(selectedCols));
+    }));
+
+    filter.addEventListener('input', renderChecks);
+
+    details.appendChild(actions);
+    details.appendChild(filter);
+    details.appendChild(list);
+    wrap.appendChild(details);
+
+    renderChecks();
+    return wrap;
+  }
+
+  function renderTablePreview(container, sourceRows, lim){
+    container.innerHTML = '';
+
+    if (!sourceRows || !sourceRows.length){
+      const d = document.createElement('div');
+      d.className = 'hint';
+      d.textContent = 'No rows available for table preview.';
+      container.appendChild(d);
+      return;
+    }
+
+    const previewRows = sourceRows.slice(0, lim);
+    const flatRows = previewRows.map(it => flattenRow(it, 2));
+    const allCols = inferColumns(previewRows, 2);
+
+    if (!allCols.length){
+      const d = document.createElement('div');
+      d.className = 'hint';
+      d.textContent = 'No columns available for table preview.';
+      container.appendChild(d);
+      return;
+    }
+
+    const selectedCols = new Set(allCols);
+    const mount = document.createElement('div');
+    mount.className = 'tableMount';
+
+    function redraw(cols){
+      mount.innerHTML = '';
+      mount.appendChild(buildTable(flatRows, cols));
+      updateResponseCopyExportState();
+    }
+
+    const selector = createColumnSelector(allCols, selectedCols, redraw);
+    container.appendChild(selector);
+    container.appendChild(mount);
+    redraw(allCols);
+  }
+
+  function updateResponseCopyExportState(){
+    btnDownloadResponse.disabled = !(lastResponse !== null && lastResponse !== undefined);
+    btnCopyResponse.disabled = true;
+
+    const activeTabEl = respTabs.querySelector('.tab.active');
+    const tabName = activeTabEl ? activeTabEl.dataset.tab : 'summary';
+    let visibleText = '';
+
+    if (tabName === 'json'){
+      visibleText = String(respJsonEl.textContent || '').trim();
+    } else if (tabName === 'table'){
+      visibleText = tableToMarkdown(respTableEl).trim();
+    } else {
+      visibleText = summaryToText(respSummaryEl).trim();
+    }
+
+    if (visibleText){
+      const bytes = new Blob([visibleText]).size;
+      btnCopyResponse.disabled = bytes > 1024 * 1024;
+    }
+
+    if (btnExportCsv){
+      const hasTable = !!respTableEl.querySelector('table');
+      btnExportCsv.style.display = (tabName === 'table') ? '' : 'none';
+      btnExportCsv.disabled = !(tabName === 'table' && hasTable);
+    }
   }
 
   function clearResponse(){
@@ -717,12 +1021,10 @@ function todayISO(){
     lastResponse = data;
 
     const sizeHuman = humanBytes(estimateSizeBytes(data));
-
     const isArray = Array.isArray(data);
     const lim = Math.min(Number(previewLimitEl.value || 10), 1000);
     const items = isArray ? data.slice(0, lim) : data;
 
-    // compute preview meta text
     let metaText = meta.status + ' ' + meta.statusText + ' • ' + meta.ms + ' ms';
     if (sizeHuman) metaText += ' • ~' + sizeHuman;
 
@@ -730,9 +1032,7 @@ function todayISO(){
       const total = data.length;
       const shown = items.length;
       metaText += ' • Preview: showing ' + shown + ' of ' + total + ' (limit ' + lim + ')';
-      if (total > lim) {
-        metaText += ' [TRUNCATED]';
-      }
+      if (total > lim) metaText += ' [TRUNCATED]';
     } else {
       metaText += ' • Preview limit ' + lim + ' item(s)';
     }
@@ -745,7 +1045,6 @@ function todayISO(){
     html += '<div class="small" style="margin-top:8px;">URL: <span class="mono">' +
             escapeHtml(meta.url) + '</span></div>';
 
-    // 🔹 explicit marker about preview limits
     if (isArray) {
       const total = data.length;
       const shown = items.length;
@@ -778,8 +1077,7 @@ function todayISO(){
         escapeHtml(previewTxt) + '</pre>';
       respJsonEl.textContent = previewTxt;
       respTableEl.innerHTML = '';
-      btnDownloadResponse.disabled = true;
-      btnCopyResponse.disabled = true;
+      updateResponseCopyExportState();
       return;
     }
 
@@ -787,132 +1085,75 @@ function todayISO(){
     respJsonEl.textContent = safeStringify(items, 250000);
     respTableEl.innerHTML = '';
 
-    // ✅ CASE 1: Array of objects
-    if (isArray && items.length && items[0] && typeof items[0] === 'object' && !Array.isArray(items[0])){
-
-      const cols = inferColumns(items, 16);
-      const table = document.createElement('table');
-
-      const thead = document.createElement('thead');
-      const trh = document.createElement('tr');
-      for (const c of cols){
-        const th = document.createElement('th');
-        th.textContent = c;
-        trh.appendChild(th);
-      }
-      thead.appendChild(trh);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      const maxRows = Math.min(items.length, lim);
-      for (let i = 0; i < maxRows; i++){
-        const tr = document.createElement('tr');
-        for (const c of cols){
-          const td = document.createElement('td');
-          td.textContent = formatCell(items[i][c]);
-          tr.appendChild(td);
-        }
-        tbody.appendChild(tr);
-      }
-
-      table.appendChild(tbody);
-      respTableEl.appendChild(table);
+    if (isArray && items.length && items.some(isPlainObject)) {
+      renderTablePreview(respTableEl, items.filter(isPlainObject), lim);
     }
+    else if (!isArray && data && typeof data === 'object') {
+      const candidates = getTableCandidates(data);
 
-    // ✅ CASE 2: Flat object
-    else if (!isArray && data && typeof data === 'object' && !Array.isArray(data)) {
+      if (candidates.length){
+        const pickerWrap = document.createElement('div');
+        pickerWrap.className = 'datasetPicker';
 
-      const entries = Object.entries(data);
+        const lbl = document.createElement('label');
+        lbl.textContent = 'Dataset';
+        pickerWrap.appendChild(lbl);
 
-      if (entries.length && typeof entries[0][1] !== 'object') {
+        const sel = document.createElement('select');
+        sel.style.width = 'auto';
 
-        const table = document.createElement('table');
+        candidates.forEach((c, idx) => {
+          const opt = document.createElement('option');
+          opt.value = String(idx);
+          opt.textContent = c.name + ' (' + c.rows.length + ')';
+          sel.appendChild(opt);
+        });
 
-        const thead = document.createElement('thead');
-        const trh = document.createElement('tr');
+        const mount = document.createElement('div');
 
-        const thKey = document.createElement('th');
-        thKey.textContent = 'Key';
-        trh.appendChild(thKey);
-
-        const thVal = document.createElement('th');
-        thVal.textContent = 'Value';
-        trh.appendChild(thVal);
-
-        thead.appendChild(trh);
-        table.appendChild(thead);
-
-        const tbody = document.createElement('tbody');
-
-        // sort numeric keys properly
-        entries.sort((a, b) => Number(a[0]) - Number(b[0]));
-
-        for (const [key, value] of entries) {
-          const tr = document.createElement('tr');
-
-          const tdKey = document.createElement('td');
-          tdKey.textContent = key;
-          tr.appendChild(tdKey);
-
-          const tdVal = document.createElement('td');
-          tdVal.textContent = formatCell(value);
-          tr.appendChild(tdVal);
-
-          tbody.appendChild(tr);
+        function renderCandidate(index){
+          renderTablePreview(mount, candidates[index].rows, lim);
         }
 
-        table.appendChild(tbody);
-        respTableEl.appendChild(table);
+        sel.addEventListener('change', () => renderCandidate(Number(sel.value)));
+
+        pickerWrap.appendChild(sel);
+        respTableEl.appendChild(pickerWrap);
+        respTableEl.appendChild(mount);
+        renderCandidate(0);
+      } else {
+        const entries = Object.entries(data);
+
+        if (entries.length && entries.every(([, value]) => value == null || typeof value !== 'object')) {
+          const rows = entries
+            .sort((a, b) => {
+              const na = Number(a[0]);
+              const nb = Number(b[0]);
+              const aNum = !Number.isNaN(na);
+              const bNum = !Number.isNaN(nb);
+              if (aNum && bNum) return na - nb;
+              return String(a[0]).localeCompare(String(b[0]));
+            })
+            .map(([key, value]) => ({ Key: key, Value: value }));
+
+          renderTablePreview(respTableEl, rows, lim);
+        } else {
+          const d = document.createElement('div');
+          d.className = 'hint';
+          d.textContent = 'No tabular collection found in this object.';
+          respTableEl.appendChild(d);
+        }
       }
     }
-
-    // ❌ fallback
     else {
       const d = document.createElement('div');
       d.className = 'hint';
-      d.textContent = 'Table preview available for arrays of objects or flat key-value objects.';
+      d.textContent = 'Table preview available for arrays of objects or objects containing table-like collections.';
       respTableEl.appendChild(d);
     }
 
-    // --- enable/disable header buttons ---
-    btnDownloadResponse.disabled = true;
-    btnCopyResponse.disabled = true;
-
-    // Download always downloads the full payload
-    if (lastResponse !== null && lastResponse !== undefined){
-      btnDownloadResponse.disabled = false;
-    }
-
-    // Determine active tab ONCE
-    const activeTabEl = respTabs.querySelector('.tab.active');
-    const tabName = activeTabEl ? activeTabEl.dataset.tab : 'summary';
-
-    // Copy should copy what's visible for the active tab
-    let visibleText = '';
-
-    if (tabName === 'json'){
-      visibleText = String(respJsonEl.textContent || '').trim();
-    } else if (tabName === 'table'){
-      // ✅ Copy on Table tab = MARKDOWN (not CSV)
-      visibleText = tableToMarkdown(respTableEl).trim();
-    } else {
-      visibleText = summaryToText(respSummaryEl).trim();
-    }
-
-    if (visibleText){
-      const bytes = new Blob([visibleText]).size;
-      if (bytes <= 1024 * 1024){
-        btnCopyResponse.disabled = false;
-      }
-    }
-
-    // ✅ Export CSV button only on Table tab
-    if (btnExportCsv){
-      const hasTable = !!respTableEl.querySelector('table');
-      btnExportCsv.style.display = (tabName === 'table') ? '' : 'none';
-      btnExportCsv.disabled = !(tabName === 'table' && hasTable);
-    }
-  } // ✅ closes renderResponse
+    updateResponseCopyExportState();
+  }
 
   function gatherParamValues(){
     const inputs = paramArea.querySelectorAll('[data-param-name]');

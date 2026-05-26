@@ -203,3 +203,137 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Response table usability */
+#respTable {
+  overflow: auto;
+}
+
+#respTable table.responseTable,
+#respTable table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#respTable th,
+#respTable td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+#respTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.datasetPicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.datasetPicker label {
+  margin: 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.tableControls {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.columnSelector {
+  min-width: min(520px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+
+.columnSelector summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  color: var(--accent);
+  outline: none;
+}
+
+.columnSelector[open] summary {
+  margin-bottom: 8px;
+}
+
+.columnSelectorActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.columnSelector .btn.mini {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.columnSelector .btn.mini:hover {
+  background: #dbeafe;
+}
+
+.columnFilter {
+  margin: 4px 0 8px;
+}
+
+.columnSelectorList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px 12px;
+  max-height: 260px;
+  overflow: auto;
+  padding-top: 4px;
+}
+
+.columnOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.columnOption input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.columnOption span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tableMount {
+  min-width: 0;
+}
