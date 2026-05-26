@@ -745,8 +745,40 @@ function todayISO(){
     return Array.from(cols);
   }
 
-  function formatCell(v){
+  function getColumnLeafName(col){
+    return String(col || '')
+      .replace(/\[\d+\]/g, '')
+      .split('.')
+      .pop()
+      .toLowerCase();
+  }
+
+  function isConvertedMeasureColumn(col){
+    const leaf = getColumnLeafName(col);
+    return leaf === 'duration' || leaf === 'amount';
+  }
+
+  function toFiniteNumber(v){
+    if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    if (typeof v === 'string'){
+      const trimmed = v.trim();
+      if (!trimmed) return NaN;
+      const n = Number(trimmed.replace(',', '.'));
+      return isFinite(n) ? n : NaN;
+    }
+    return NaN;
+  }
+
+  function formatDecimal2(n){
+    return isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : '';
+  }
+
+  function formatCell(v, col){
     if (v === null || v === undefined) return '';
+    if (isConvertedMeasureColumn(col)){
+      const n = toFiniteNumber(v);
+      if (isFinite(n)) return formatDecimal2(n / 60);
+    }
     if (typeof v === 'boolean') return v ? 'true' : 'false';
     if (typeof v === 'number') return String(v);
     if (typeof v === 'string') return v;
@@ -789,10 +821,10 @@ function todayISO(){
     return candidates;
   }
 
-  function makeCell(text){
+  function makeCell(text, raw){
     const td = document.createElement('td');
     td.textContent = text;
-    td.title = text;
+    td.title = raw !== undefined && raw !== text ? (text + ' (raw: ' + raw + ')') : text;
     return td;
   }
 
@@ -817,7 +849,8 @@ function todayISO(){
     for (const row of rows){
       const tr = document.createElement('tr');
       for (const c of cols){
-        tr.appendChild(makeCell(formatCell(row[c])));
+        const raw = row[c];
+        tr.appendChild(makeCell(formatCell(raw, c), raw == null ? '' : String(raw)));
       }
       tbody.appendChild(tr);
     }
@@ -936,6 +969,213 @@ function todayISO(){
     return wrap;
   }
 
+  function normalizeFilterValue(s){
+    return String(s == null ? '' : s).trim().replace(/^['"]|['"]$/g, '');
+  }
+
+  function rowMatchesFilter(row, filter){
+    const raw = row[filter.col];
+    const target = normalizeFilterValue(filter.value);
+    const op = filter.op || 'contains';
+    const cellText = String(raw == null ? '' : raw);
+    const cellLower = cellText.toLowerCase();
+    const targetLower = target.toLowerCase();
+    const cellNum = toFiniteNumber(raw);
+    const targetNum = toFiniteNumber(target);
+
+    if (op === 'empty') return cellText.trim() === '';
+    if (op === 'notEmpty') return cellText.trim() !== '';
+    if (op === '=') return cellLower === targetLower;
+    if (op === '!=') return cellLower !== targetLower;
+    if (op === 'contains') return cellLower.includes(targetLower);
+    if (op === 'notContains') return !cellLower.includes(targetLower);
+
+    if (!isFinite(cellNum) || !isFinite(targetNum)) return false;
+    if (op === '>') return cellNum > targetNum;
+    if (op === '>=') return cellNum >= targetNum;
+    if (op === '<') return cellNum < targetNum;
+    if (op === '<=') return cellNum <= targetNum;
+    return true;
+  }
+
+  function applyRowFilters(rows, filters){
+    const active = (filters || []).filter(f => f && f.col && (f.op === 'empty' || f.op === 'notEmpty' || String(f.value || '').trim() !== ''));
+    if (!active.length) return rows;
+    return rows.filter(row => active.every(f => rowMatchesFilter(row, f)));
+  }
+
+  function createRowFilterControls(allCols, filters, onChange){
+    const wrap = document.createElement('details');
+    wrap.className = 'rowFilterBox';
+
+    const summary = document.createElement('summary');
+    wrap.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.className = 'rowFilterBody';
+    wrap.appendChild(body);
+
+    function updateSummary(){
+      const active = filters.filter(f => f && f.col && (f.op === 'empty' || f.op === 'notEmpty' || String(f.value || '').trim() !== '')).length;
+      summary.textContent = 'Row filters (' + active + ')';
+    }
+
+    function miniBtn(label, fn){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn mini';
+      btn.textContent = label;
+      btn.addEventListener('click', fn);
+      return btn;
+    }
+
+    function render(){
+      updateSummary();
+      body.innerHTML = '';
+
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.textContent = 'Example: choose registerId, operator =, value 1722. Multiple filters are combined with AND.';
+      body.appendChild(hint);
+
+      const rowsWrap = document.createElement('div');
+      rowsWrap.className = 'rowFilterRows';
+      body.appendChild(rowsWrap);
+
+      filters.forEach((filter, idx) => {
+        const row = document.createElement('div');
+        row.className = 'rowFilterRow';
+
+        const colSel = document.createElement('select');
+        colSel.title = 'Column';
+        for (const col of allCols){
+          const opt = document.createElement('option');
+          opt.value = col;
+          opt.textContent = col;
+          colSel.appendChild(opt);
+        }
+        colSel.value = filter.col || allCols[0] || '';
+        colSel.addEventListener('change', () => {
+          filter.col = colSel.value;
+          onChange();
+          render();
+        });
+
+        const opSel = document.createElement('select');
+        opSel.title = 'Operator';
+        [
+          ['contains', 'contains'],
+          ['=', '='],
+          ['!=', '!='],
+          ['notContains', 'not contains'],
+          ['>', '>'],
+          ['>=', '>='],
+          ['<', '<'],
+          ['<=', '<='],
+          ['empty', 'is empty'],
+          ['notEmpty', 'not empty']
+        ].forEach(([value, label]) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          opSel.appendChild(opt);
+        });
+        opSel.value = filter.op || 'contains';
+        opSel.addEventListener('change', () => {
+          filter.op = opSel.value;
+          onChange();
+          render();
+        });
+
+        const val = document.createElement('input');
+        val.type = 'text';
+        val.placeholder = 'value';
+        val.value = filter.value || '';
+        val.disabled = filter.op === 'empty' || filter.op === 'notEmpty';
+        val.addEventListener('input', () => {
+          filter.value = val.value;
+          onChange();
+        });
+
+        const remove = miniBtn('Remove', () => {
+          filters.splice(idx, 1);
+          onChange();
+          render();
+        });
+
+        row.appendChild(colSel);
+        row.appendChild(opSel);
+        row.appendChild(val);
+        row.appendChild(remove);
+        rowsWrap.appendChild(row);
+      });
+
+      const actions = document.createElement('div');
+      actions.className = 'rowFilterActions';
+      actions.appendChild(miniBtn('Add filter', () => {
+        filters.push({ col: allCols[0] || '', op: '=', value: '' });
+        render();
+        onChange();
+      }));
+      actions.appendChild(miniBtn('Clear filters', () => {
+        filters.splice(0, filters.length);
+        render();
+        onChange();
+      }));
+      body.appendChild(actions);
+    }
+
+    render();
+    return wrap;
+  }
+
+  function calculateMeasureSums(rows, cols){
+    const result = [];
+    for (const col of cols){
+      if (!isConvertedMeasureColumn(col)) continue;
+      let rawTotal = 0;
+      let count = 0;
+      for (const row of rows){
+        const n = toFiniteNumber(row[col]);
+        if (isFinite(n)){
+          rawTotal += n;
+          count++;
+        }
+      }
+      if (count){
+        result.push({ col, count, rawTotal, convertedTotal: rawTotal / 60 });
+      }
+    }
+    return result;
+  }
+
+  function createSumBar(filteredRows, totalRows, cols){
+    const bar = document.createElement('div');
+    bar.className = 'tableSummaryBar';
+
+    const rowInfo = document.createElement('span');
+    rowInfo.textContent = 'Rows: ' + filteredRows.length + ' of ' + totalRows;
+    bar.appendChild(rowInfo);
+
+    const sums = calculateMeasureSums(filteredRows, cols);
+    for (const s of sums){
+      const pill = document.createElement('span');
+      pill.className = 'sumPill';
+      pill.title = s.col + ' raw sum: ' + s.rawTotal + '. Displayed total is raw sum / 60.';
+      pill.textContent = 'Σ ' + s.col + ': ' + formatDecimal2(s.convertedTotal) + ' (raw ' + s.rawTotal + ')';
+      bar.appendChild(pill);
+    }
+
+    if (!sums.length){
+      const hint = document.createElement('span');
+      hint.className = 'hint';
+      hint.textContent = 'No duration/amount columns to sum.';
+      bar.appendChild(hint);
+    }
+
+    return bar;
+  }
+
   function renderTablePreview(container, sourceRows, lim){
     container.innerHTML = '';
 
@@ -960,17 +1200,29 @@ function todayISO(){
     }
 
     const selectedCols = new Set(allCols);
+    const filters = [];
+
+    const topControls = document.createElement('div');
+    topControls.className = 'tableTopControls';
+
     const mount = document.createElement('div');
     mount.className = 'tableMount';
 
     function redraw(cols){
+      const visibleCols = cols && cols.length ? cols : Array.from(selectedCols);
+      const filteredRows = applyRowFilters(flatRows, filters);
       mount.innerHTML = '';
-      mount.appendChild(buildTable(flatRows, cols));
+      mount.appendChild(createSumBar(filteredRows, flatRows.length, allCols));
+      mount.appendChild(buildTable(filteredRows, visibleCols));
       updateResponseCopyExportState();
     }
 
     const selector = createColumnSelector(allCols, selectedCols, redraw);
-    container.appendChild(selector);
+    const filterControls = createRowFilterControls(allCols, filters, () => redraw(Array.from(selectedCols)));
+
+    topControls.appendChild(selector);
+    topControls.appendChild(filterControls);
+    container.appendChild(topControls);
     container.appendChild(mount);
     redraw(allCols);
   }
