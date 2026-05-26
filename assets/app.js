@@ -48,8 +48,34 @@
   const respTabs = document.getElementById('respTabs');
   const _rememberedNodeIdByInstance = Object.create(null);
 
-  function readSession(){ try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null') }catch(e){ return null } }
-  function saveSession(x){ sessionStorage.setItem(SESSION_KEY, JSON.stringify(x||null)) }
+  function migrateLegacySession(){
+    try{
+      const legacy = sessionStorage.getItem(SESSION_KEY);
+      if (legacy && !localStorage.getItem(SESSION_KEY)){
+        localStorage.setItem(SESSION_KEY, legacy);
+      }
+    }catch(e){}
+  }
+
+  function readSession(){
+    try{
+      migrateLegacySession();
+      return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    }catch(e){
+      return null;
+    }
+  }
+
+  function saveSession(x){
+    try{
+      if (x === null){
+        localStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(SESSION_KEY);
+      } else {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(x||null));
+      }
+    }catch(e){}
+  }
 
   function currentAuthScope(){
     // Tie auth to the *exact* base path (endpoint + client + instance)
@@ -998,13 +1024,31 @@ function todayISO(){
     return true;
   }
 
-  function applyRowFilters(rows, filters){
-    const active = (filters || []).filter(f => f && f.col && (f.op === 'empty' || f.op === 'notEmpty' || String(f.value || '').trim() !== ''));
+  function applyRowFilters(rows, filters, mode){
+    const active = (filters || []).filter(f =>
+      f &&
+      f.col &&
+      (
+        f.op === 'empty' ||
+        f.op === 'notEmpty' ||
+        String(f.value || '').trim() !== ''
+      )
+    );
+
     if (!active.length) return rows;
-    return rows.filter(row => active.every(f => rowMatchesFilter(row, f)));
+
+    const filterMode = String(mode || 'ALL').toUpperCase();
+
+    return rows.filter(row => {
+      if (filterMode === 'ANY'){
+        return active.some(f => rowMatchesFilter(row, f));
+      }
+
+      return active.every(f => rowMatchesFilter(row, f));
+    });
   }
 
-  function createRowFilterControls(allCols, filters, onChange){
+  function createRowFilterControls(allCols, filters, onChange, onModeChange){
     const wrap = document.createElement('details');
     wrap.className = 'rowFilterBox';
 
@@ -1015,9 +1059,13 @@ function todayISO(){
     body.className = 'rowFilterBody';
     wrap.appendChild(body);
 
+    let filterMode = 'ALL';
+
     function updateSummary(){
       const active = filters.filter(f => f && f.col && (f.op === 'empty' || f.op === 'notEmpty' || String(f.value || '').trim() !== '')).length;
-      summary.textContent = 'Row filters (' + active + ')';
+      summary.textContent =
+      'Row filters (' + active + ') • ' +
+      (filterMode === 'ANY' ? 'OR' : 'AND');
     }
 
     function miniBtn(label, fn){
@@ -1033,9 +1081,39 @@ function todayISO(){
       updateSummary();
       body.innerHTML = '';
 
+      const modeWrap = document.createElement('div');
+      modeWrap.style.marginBottom = '10px';
+
+      const modeLabel = document.createElement('label');
+      modeLabel.textContent = 'Match mode';
+
+      const modeSel = document.createElement('select');
+
+      [['ALL', 'ALL (AND)'], ['ANY', 'ANY (OR)']].forEach(([v,t]) => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = t;
+        modeSel.appendChild(opt);
+      });
+
+      modeSel.value = filterMode;
+
+      modeSel.addEventListener('change', () => {
+        filterMode = modeSel.value;
+        updateSummary();
+
+        if (typeof onModeChange === 'function'){
+          onModeChange(filterMode);
+        }
+      });
+
+      modeWrap.appendChild(modeLabel);
+      modeWrap.appendChild(modeSel);
+      body.appendChild(modeWrap);
+
       const hint = document.createElement('div');
       hint.className = 'hint';
-      hint.textContent = 'Example: choose registerId, operator =, value 1722. Multiple filters are combined with AND.';
+      hint.textContent = 'Example: registerId = 1722. Use ALL (AND) or ANY (OR).';
       body.appendChild(hint);
 
       const rowsWrap = document.createElement('div');
@@ -1201,6 +1279,7 @@ function todayISO(){
 
     const selectedCols = new Set(allCols);
     const filters = [];
+    let filterMode = 'ALL';
 
     const topControls = document.createElement('div');
     topControls.className = 'tableTopControls';
@@ -1210,7 +1289,7 @@ function todayISO(){
 
     function redraw(cols){
       const visibleCols = cols && cols.length ? cols : Array.from(selectedCols);
-      const filteredRows = applyRowFilters(flatRows, filters);
+      const filteredRows = applyRowFilters(flatRows, filters, filterMode);
       mount.innerHTML = '';
       mount.appendChild(createSumBar(filteredRows, flatRows.length, allCols));
       mount.appendChild(buildTable(filteredRows, visibleCols));
@@ -1218,7 +1297,15 @@ function todayISO(){
     }
 
     const selector = createColumnSelector(allCols, selectedCols, redraw);
-    const filterControls = createRowFilterControls(allCols, filters, () => redraw(Array.from(selectedCols)));
+    const filterControls = createRowFilterControls(
+      allCols,
+      filters,
+      () => redraw(Array.from(selectedCols)),
+      value => {
+        filterMode = value;
+        redraw(Array.from(selectedCols));
+      }
+    );
 
     topControls.appendChild(selector);
     topControls.appendChild(filterControls);
